@@ -1,12 +1,12 @@
 # Windows 原型验收
 
-第一阶段，目标为 Windows 11 x64；需要 .NET 10 SDK 构建、Evergreen WebView2 Runtime 运行。默认不访问官网。自动测试拦截全部 WebView 请求，夹具通过模拟官网地址测试共享脚本，不使用真实账号；浏览器运行时自身的后台活动不在此拦截范围内。
+第一阶段，目标为 Windows 11 x64；需要 .NET 10 SDK 构建、Evergreen WebView2 Runtime 运行。默认不访问官网。自动测试拦截全部 WebView 请求，夹具通过模拟官网地址测试Windows 网页脚本，不使用真实账号；浏览器运行时自身的后台活动不在此拦截范围内。
 
 ```powershell
-powershell -File scripts/test-windows.ps1
-build/windows/Qingdu.Windows.exe
+powershell -File windows/scripts/test-windows.ps1
+windows/build/Qingdu.Windows.exe
 # 明确打开官网，登录与阅读需人工验证
-build/windows/Qingdu.Windows.exe --website
+windows/build/Qingdu.Windows.exe --website
 ```
 
 自动验证：首轮排版与重注入一致、DOM 金色、Canvas 金色像素、网页透明像素、工具栏隐藏、原生窗口在网页持续忙碌时隐藏和恢复。测试输出只含固定检查名及耗时，不输出网页正文、账号或 Cookie。45 秒超时判失败。
@@ -24,7 +24,7 @@ build/windows/Qingdu.Windows.exe --website
 
 2026-09-28 验证记录：
 
-- Mac 使用项目缓存内的 .NET 10.0.100 SDK 交叉编译与 win-x64 自包含构建成功，0 警告、0 错误；可复制完整 `build/windows/` 目录到 Windows，不能只复制 exe。也可解压 `build/Qingdu-Windows-prototype-x64.zip`。
+- Mac 使用项目缓存内的 .NET 10.0.100 SDK 交叉编译与 win-x64 自包含构建成功，0 警告、0 错误；可复制完整 `windows/build/` 目录到 Windows，不能只复制 exe。也可解压 `windows/build/Qingdu-Windows-prototype-x64.zip`。
 - 独立 C# / JavaScript 审查通过；Chrome 离线验证确认 document-created 时根节点尚不存在，修复后首轮测量与最终字体、行高和段间距一致，正文金色且样式仅注入一次。
-- macOS 策略、快捷键、WebKit 外观和繁忙网页隐藏／恢复测试通过。macOS 打包编译成功，但 ad-hoc 签名被产物中的 Finder 元数据阻塞，未将该打包记为通过。
+- macOS 策略、快捷键、WebKit 外观和繁忙网页隐藏／恢复测试通过。目录迁移后重新构建 macOS 应用，编译和 ad-hoc 签名校验均通过。
 - Windows 实测状态：待验证。以上结果均不能替代 Windows 透明合成、输入、性能及 WebView2 自动测试验收。

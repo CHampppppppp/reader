@@ -34,7 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             startupIssues.append("快捷键注册失败，可能与其他应用冲突（错误码 \(registration)）。请在设置菜单中选择另一个快捷键。菜单栏入口已保留。")
         }
         if appearanceTemplate == nil {
-            startupIssues.append("缺少外观资源，请通过 scripts/build-app.sh 构建并打开生成的 app。当前可正常浏览网页，但透明阅读样式不可用。")
+            startupIssues.append("缺少外观资源，请通过 mac/scripts/build-app.sh 构建并打开生成的 app。当前可正常浏览网页，但透明阅读样式不可用。")
         }
         if !webView.backgroundTransparencyAvailable {
             startupIssues.append("当前系统的 WebKit 背景接口不可用，阅读功能可继续使用，但无法去除底层背景。")

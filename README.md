@@ -4,7 +4,15 @@
 
 轻读是一个 macOS 原生微信读书悬浮窗口。它用系统 WebKit 打开[微信读书官网](https://weread.qq.com/)，让书页浮在桌面上；不另造书架，也不接管你的阅读进度。窗口可以一键隐藏和恢复，适合在任务间隙读两页。至于这算不算摸鱼，请参考你的工作安排。下文的下载、功能和性能数据均指 macOS 版；Windows 原型的区别见下方说明。
 
-仓库另有 **Windows 11 x64 第一阶段原型**（C# / WPF / WebView2），用于验证透明窗口、金色正文和繁忙网页下的原生隐藏，尚不是功能齐全的 Windows 正式版。默认显示离线夹具，`--website` 才打开官网；详见 [Windows 构建与验收说明](Tests/Reader.Windows.Tests/README.md)。下文安装包、操作和已验证结论均针对 macOS，不代表 Windows 已通过实机验证。
+仓库另有 **Windows 11 x64 第一阶段原型**（C# / WPF / WebView2），用于验证透明窗口、金色正文和繁忙网页下的原生隐藏，尚不是功能齐全的 Windows 正式版。默认显示离线夹具，`--website` 才打开官网；详见 [Windows 构建与验收说明](windows/Tests/Reader.Windows.Tests/README.md)。下文安装包、操作和已验证结论均针对 macOS，不代表 Windows 已通过实机验证。
+
+## 项目目录
+
+- `mac/`：macOS 源码、Swift 包定义、资源、测试与构建脚本，产物在 `mac/build/`。
+- `windows/`：Windows 源码、资源、测试与构建脚本，产物在 `windows/build/`。
+- 两个平台各自保存 `Resources/appearance.js`，构建时读取自己的副本，可分别调整外观。
+
+以下开发命令均从仓库根目录执行。旧根目录 `build/` 中的历史产物保留，新产物使用上述平台目录。
 
 ## 先领一份“工位装备”
 
@@ -57,12 +65,12 @@ WebKit 原生底色通过运行时检查后调用 `drawsBackground` SPI 关闭�
 只需要 Apple Command Line Tools，不需要第三方运行时或完整 Xcode：
 
 ```bash
-bash scripts/test.sh
-bash scripts/test-window.sh
-bash scripts/test-appearance.sh
-bash scripts/build-app.sh
+bash mac/scripts/test.sh
+bash mac/scripts/test-window.sh
+bash mac/scripts/test-appearance.sh
+bash mac/scripts/build-app.sh
 ```
 
-本地产物在 `build/轻读.app`，对应构建机器的架构，使用临时签名。现有测试覆盖策略与快捷键注册、网页忙碌时隐藏 / 恢复、透明像素、DOM 与 Canvas 金色正文、翻页按钮隐藏和签名校验。方向键没有被重复接管，但真实书籍翻页、长章节性能、跨设备同步，以及多桌面 / 全屏应用中的快捷键表现，仍需要实际使用验证。
+本地产物在 `mac/build/轻读.app`，对应构建机器的架构，使用临时签名。现有测试覆盖策略与快捷键注册、网页忙碌时隐藏 / 恢复、透明像素、DOM 与 Canvas 金色正文、翻页按钮隐藏和签名校验。方向键没有被重复接管，但真实书籍翻页、长章节性能、跨设备同步，以及多桌面 / 全屏应用中的快捷键表现，仍需要实际使用验证。
 
 轻读不会帮你完成日报；它只负责在日报之间，留一页书的位置。

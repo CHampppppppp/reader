@@ -4,7 +4,7 @@ $root = Split-Path $PSScriptRoot -Parent
 $id = [Guid]::NewGuid().ToString('N')
 $stdout = Join-Path $root "build/windows-test-$id.stdout.log"
 $stderr = Join-Path $root "build/windows-test-$id.stderr.log"
-$process = Start-Process -FilePath (Join-Path $root 'build/windows/Qingdu.Windows.exe') -ArgumentList '--self-test' -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+$process = Start-Process -FilePath (Join-Path $root 'build/Qingdu.Windows.exe') -ArgumentList '--self-test' -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
 if (-not $process.WaitForExit(45000)) {
     $process.Kill()
     throw "Prototype test timed out. Logs: $stdout and $stderr"
