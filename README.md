@@ -4,6 +4,8 @@
 
 轻读是一个 macOS 原生微信读书悬浮窗口。它用系统 WebKit 打开[微信读书官网](https://weread.qq.com/)，让书页浮在桌面上；不另造书架，也不接管你的阅读进度。窗口可以一键隐藏和恢复，适合在任务间隙读两页。至于这算不算摸鱼，请参考你的工作安排。
 
+仓库另有 **Windows 11 x64 第一阶段原型**（C# / WPF / WebView2），用于验证透明窗口、金色正文和繁忙网页下的原生隐藏，尚不是功能齐全的 Windows 正式版。默认显示离线夹具，`--website` 才打开官网；详见 [Windows 构建与验收说明](Tests/Reader.Windows.Tests/README.md)。下文安装包、操作和已验证结论均针对 macOS，不代表 Windows 已通过实机验证。
+
 ## 先领一份“工位装备”
 
 从 [Releases](https://github.com/CHampppppppp/reader/releases) 下载 `Reader-v0.1.0-macos-arm64.zip`，解压后打开 `轻读.app`。目前的安装包只支持 **Apple Silicon Mac**，要求 **macOS 13 或更新版本**；本仓库为私有仓库，下载需要仓库访问权限。

@@ -1,5 +1,16 @@
-(() => {
+(function installAppearance() {
   if (location.protocol !== 'https:' || location.hostname !== 'weread.qq.com') return;
+  // WebView2 can run document-created scripts before the parser creates <html>.
+  // Observe only until that first node exists, before page scripts measure text.
+  if (!document.documentElement) {
+    const observer = new MutationObserver(() => {
+      if (!document.documentElement) return;
+      observer.disconnect();
+      installAppearance();
+    });
+    observer.observe(document, { childList: true });
+    return;
+  }
   // Install before site scripts measure text and cache canvas page coordinates.
   // document.body does not exist yet at documentStart; use documentElement below.
   const settings = __READER_SETTINGS__;
@@ -47,7 +58,7 @@
     .readerChapterContent .renderTargetContent,
     .readerChapterContent .renderTargetContent :is(p, span, div, a, h1, h2, h3, h4, h5, h6),
     .readerChapterContent .renderTargetPageInfo_header {
-      font-family: "PingFang SC", -apple-system, "Helvetica Neue", sans-serif !important;
+      font-family: "PingFang SC", -apple-system, "Microsoft YaHei", "Helvetica Neue", sans-serif !important;
       font-weight: 500 !important;
     }
     .preRenderContainer .preRenderContent p,
