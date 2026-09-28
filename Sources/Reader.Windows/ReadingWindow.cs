@@ -43,7 +43,7 @@ internal sealed class ReadingWindow : Window
         browser.DefaultBackgroundColor = System.Drawing.Color.Transparent;
         Content = browser;
         var menu = new Forms.ContextMenuStrip();
-        menu.Items.Add("显示 / 隐藏（Ctrl + Alt + 0）", null, (_, _) => ToggleVisibility());
+        menu.Items.Add("显示 / 隐藏（Ctrl + 0）", null, (_, _) => ToggleVisibility());
         menu.Items.Add("切换深色底 / 透明底", null, (_, _) =>
             Background = Background == Brushes.Transparent ? new SolidColorBrush(Color.FromRgb(28, 28, 30)) : Brushes.Transparent);
         menu.Items.Add("退出轻读", null, (_, _) => Exit(0));
@@ -60,7 +60,7 @@ internal sealed class ReadingWindow : Window
             if (selfTest) return; // Automated runs must not steal a user's shortcut.
             hotKey = new GlobalHotKey(new WindowInteropHelper(this).Handle, ToggleVisibility);
             if (!hotKey.IsRegistered)
-                MessageBox.Show(this, "Ctrl + Alt + 0 已被占用，使用托盘菜单显示或隐藏。", Title);
+                MessageBox.Show(this, "Ctrl + 0 已被占用，使用托盘菜单显示或隐藏。", Title);
         };
         PreviewMouseLeftButtonDown += (_, e) =>
         {

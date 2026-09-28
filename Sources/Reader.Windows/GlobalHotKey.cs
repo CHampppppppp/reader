@@ -16,8 +16,8 @@ internal sealed class GlobalHotKey : IDisposable
         this.onPress = onPress;
         source = HwndSource.FromHwnd(handle) ?? throw new InvalidOperationException("Missing window handle");
         source.AddHook(HandleMessage);
-        // MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, main keyboard 0.
-        IsRegistered = RegisterHotKey(handle, Id, 0x4003, 0x30);
+        // MOD_CONTROL | MOD_NOREPEAT, main keyboard 0.
+        IsRegistered = RegisterHotKey(handle, Id, 0x4002, 0x30);
     }
 
     private IntPtr HandleMessage(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled)

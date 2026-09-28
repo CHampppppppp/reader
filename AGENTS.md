@@ -35,7 +35,7 @@ macOS 原生微信读书悬浮浏览器，另有 Windows 11 x64 原型。Windows
 
 ## 验证
 - Windows 原型使用 WPF 的 WebView2CompositionControl 验证透明合成；默认打开离线夹具，`--website` 才加载官网，`--self-test` 运行离线自动验证。Windows 用微软雅黑字体，macOS 保持苹方。启动脚本必须先于页面脚本执行，隐藏直接调用原生窗口 Hide，不等待网页。
-- Windows 原型固定保留托盘入口，默认 Ctrl + Alt + 0；冲突明确提示。此阶段暂不实现设置持久化与快捷键配置。WebView2 Runtime 缺失时提示用户安装，不静默修改系统。
+- Windows 原型固定保留托盘入口，默认 Ctrl + 0（主键盘数字 0），不提供快捷键修改；冲突明确提示。此阶段暂不实现设置持久化。WebView2 Runtime 缺失时提示用户安装，不静默修改系统。
 - `powershell -File scripts/build-windows.ps1`：在 Windows 用 .NET 10 SDK 构建自带 .NET 运行时的 win-x64 测试包，输出 `build/windows/`。
 - `powershell -File scripts/test-windows.ps1`：在 Windows 运行离线外观、透明像素、繁忙网页隐藏／恢复测试；桌面透明合成与交互仍需按夹具说明人工验收。Mac 上交叉编译不代表 Windows 运行验证。
 - `bash scripts/test.sh`：验证配置、链接和快捷键规则。测试使用独立 Swift 入口，兼容仅安装 Command Line Tools、没有 XCTest 的环境。
