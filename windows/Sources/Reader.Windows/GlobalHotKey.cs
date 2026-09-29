@@ -6,23 +6,41 @@ namespace Qingdu.Windows;
 
 internal sealed class GlobalHotKey : IDisposable
 {
-    private const int Id = 0x5144;
     private readonly HwndSource source;
+    private readonly int id;
+    private readonly uint modifiers;
+    private readonly uint key;
     private readonly Action onPress;
-    public bool IsRegistered { get; }
+    public bool IsRegistered { get; private set; }
 
-    public GlobalHotKey(IntPtr handle, Action onPress)
+    public GlobalHotKey(IntPtr handle, int id, uint modifiers, uint key, Action onPress, bool registerImmediately = true)
     {
+        this.id = id;
+        this.modifiers = modifiers;
+        this.key = key;
         this.onPress = onPress;
         source = HwndSource.FromHwnd(handle) ?? throw new InvalidOperationException("Missing window handle");
         source.AddHook(HandleMessage);
-        // MOD_CONTROL | MOD_NOREPEAT, main keyboard 0.
-        IsRegistered = RegisterHotKey(handle, Id, 0x4002, 0x30);
+        if (registerImmediately) Register();
+    }
+
+    public bool Register()
+    {
+        if (IsRegistered) return true;
+        IsRegistered = RegisterHotKey(source.Handle, id, modifiers, key);
+        return IsRegistered;
+    }
+
+    public void Unregister()
+    {
+        if (!IsRegistered) return;
+        UnregisterHotKey(source.Handle, id);
+        IsRegistered = false;
     }
 
     private IntPtr HandleMessage(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
-        if (message == 0x0312 && wParam.ToInt32() == Id && IsRegistered)
+        if (message == 0x0312 && wParam.ToInt32() == id && IsRegistered)
         {
             handled = true;
             onPress();
@@ -32,7 +50,7 @@ internal sealed class GlobalHotKey : IDisposable
 
     public void Dispose()
     {
-        if (IsRegistered) UnregisterHotKey(source.Handle, Id);
+        Unregister();
         source.RemoveHook(HandleMessage);
     }
 

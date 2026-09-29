@@ -6,7 +6,7 @@ macOS 原生微信读书悬浮浏览器，另有 Windows 11 x64 原型。Windows
 ## 结构与命名
 - `mac/`：macOS 独立工程根目录；`Package.swift`、`Sources/Reader/`、`Tests/ReaderTests/`、`Resources/` 和 `scripts/` 分别放包定义、Swift 源码、测试、平台资源和构建验证脚本。
 - `windows/`：Windows 独立工程根目录；`Sources/Reader.Windows/`、`Tests/Reader.Windows.Tests/`、`Resources/` 和 `scripts/` 分别放 C# / WPF 工程、离线夹具与验收说明、平台网页脚本、PowerShell 构建验证脚本。
-- `mac/Resources/appearance.js` 与 `windows/Resources/appearance.js` 各保存一份独立网页脚本；构建和测试只读取当前平台资源，不跨目录引用。通用外观修复需要同步时分别修改并验证两份；平台差异可独立维护。macOS 的 Info.plist、AppIcon.icns、Logo 原始 PNG 与提示词放在 `mac/Resources/`。
+- `mac/Resources/appearance.js` 与 `windows/Resources/appearance.js` 各保存一份独立网页脚本；构建和测试只读取当前平台资源，不跨目录引用。通用外观修复需要同步时分别修改并验证两份；平台差异可独立维护。macOS 的 Info.plist、AppIcon.icns、Logo 原始 PNG 与提示词放在 `mac/Resources/`；Windows 的 AppIcon.ico 放在 `windows/Resources/`，供可执行文件和托盘图标使用。
 - 类型与源码文件使用 PascalCase，脚本使用小写连字符命名。临时调查文件不要写进源码目录。
 - `mac/build/`、`windows/build/`：各平台本地产物，不提交；未经用户确认不删除。
 - `mac/.build/`：Swift Package Manager 和 Swift 测试缓存；Windows 的 `bin/`、`obj/` 为 .NET 构建缓存，均不提交。
@@ -20,6 +20,7 @@ macOS 原生微信读书悬浮浏览器，另有 Windows 11 x64 原型。Windows
 - 以 accessory/LSUIElement 方式运行，不显示 Dock 入口。
 - 快捷键注册失败必须可见，菜单入口关闭前必须保证快捷键可用。
 - 全局隐藏／显示默认使用 Command + 主键盘数字 0；本次更新按用户要求将旧组合切换到该默认值，之后用户选择仍持久化。
+- macOS 阅读窗口内按 Command + Esc 返回微信读书选书首页；由原生窗口处理，不重复注册网页监听，也不注册全局返回快捷键。原生弹窗打开时保留弹窗的键盘处理。
 - 性能优先：隐藏热路径先 orderOut，再处理焦点与菜单；不能等待 JavaScript、网络或同步。不得添加周期轮询或自动刷新。验证原生进程和 WebKit 子进程占用，网页繁忙时验证隐藏响应。
 - 网页透明样式只作用于 weread.qq.com，可关闭；不修改网页阅读和同步逻辑。
 - 阅读背景默认完全透明（alpha=0），本次升级一次性启用透明背景并清除旧底色；正文金色与字号不变，后续用户调整仍可保存。
@@ -33,7 +34,7 @@ macOS 原生微信读书悬浮浏览器，另有 Windows 11 x64 原型。Windows
 
 ## 验证
 - Windows 原型使用 WPF 的 WebView2CompositionControl 验证透明合成；默认打开离线夹具，`--website` 才加载官网，`--self-test` 运行离线自动验证。Windows 用微软雅黑字体，macOS 保持苹方。启动脚本必须先于页面脚本执行，隐藏直接调用原生窗口 Hide，不等待网页。
-- Windows 原型固定保留托盘入口，默认 Ctrl + 0（主键盘数字 0），不提供快捷键修改；冲突明确提示。此阶段暂不实现设置持久化。WebView2 Runtime 缺失时提示用户安装，不静默修改系统。
+- Windows 原型固定保留托盘入口，默认 Alt + 0（主键盘数字 0）全局隐藏／恢复，不提供快捷键修改；冲突明确提示。Windows 窗口使用 Alt + 拖动移动；官网模式提供托盘返回选书页入口，Alt + Esc 仅在本窗口激活时返回选书页，窗口失焦时释放该系统组合键。此阶段暂不实现设置持久化。WebView2 Runtime 缺失时提示用户安装，不静默修改系统。
 - `powershell -File windows/scripts/build-windows.ps1`：在 Windows 用 .NET 10 SDK 构建自带 .NET 运行时的 win-x64 测试包，输出 `windows/build/`。
 - `powershell -File windows/scripts/test-windows.ps1`：在 Windows 运行离线外观、透明像素、繁忙网页隐藏／恢复测试；桌面透明合成与交互仍需按夹具说明人工验收。Mac 上交叉编译不代表 Windows 运行验证。
 - `bash mac/scripts/test.sh`：验证配置、链接和快捷键规则。测试使用独立 Swift 入口，兼容仅安装 Command Line Tools、没有 XCTest 的环境。

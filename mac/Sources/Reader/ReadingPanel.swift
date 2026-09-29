@@ -2,8 +2,19 @@ import AppKit
 import WebKit
 
 final class ReadingPanel: NSPanel {
+    var onReturnToBooks: (() -> Void)?
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        let modifiers = event.modifierFlags.intersection([.command, .control, .option, .shift])
+        if event.type == .keyDown, event.keyCode == 53, modifiers == .command,
+           isKeyWindow, attachedSheet == nil, let onReturnToBooks {
+            if !event.isARepeat { onReturnToBooks() }
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
 
     override func sendEvent(_ event: NSEvent) {
         if event.type == .leftMouseDown, event.modifierFlags.contains(.option), attachedSheet == nil {

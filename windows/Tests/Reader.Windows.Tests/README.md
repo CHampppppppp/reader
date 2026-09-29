@@ -1,6 +1,6 @@
 # Windows 原型验收
 
-第一阶段，目标为 Windows 11 x64；需要 .NET 10 SDK 构建、Evergreen WebView2 Runtime 运行。默认不访问官网。自动测试拦截全部 WebView 请求，夹具通过模拟官网地址测试Windows 网页脚本，不使用真实账号；浏览器运行时自身的后台活动不在此拦截范围内。
+第一阶段，目标为 Windows 11 x64；需要 .NET 10 SDK 构建、Evergreen WebView2 Runtime 运行。构建脚本优先使用仓库 `.build/dotnet/` 中的本地 SDK，没有时使用系统 `dotnet`。exe 与托盘使用 `windows/Resources/AppIcon.ico` 中的金色书本 Logo。默认不访问官网。自动测试拦截全部 WebView 请求，夹具通过模拟官网地址测试 Windows 网页脚本，不使用真实账号；浏览器运行时自身的后台活动不在此拦截范围内。
 
 ```powershell
 powershell -File windows/scripts/test-windows.ps1
@@ -14,9 +14,10 @@ windows/build/Qingdu.Windows.exe --website
 人工验收（自动 PNG 透明不等于桌面合成透明）：
 
 - 把窗口放到浅色、深色及复杂桌面上，确认桌面能透出、金色文字清晰、Canvas 色块与参考色块一致。
-- 在 100%、150%、200% 缩放和多显示器间验证文字、Alt 拖动、窗口边缘缩放与鼠标点击；完全透明空白可能穿透点击，必须记录实际行为。
-- 在其他应用中按 Ctrl + 0（主键盘数字 0），确认窗口消失、恢复；快捷键被占用时提示且托盘可恢复。Alt + F4 应隐藏，托盘退出应结束进程。
+- 在 100%、150%、200% 缩放和多显示器间验证文字、Alt + 拖动、窗口边缘缩放与鼠标点击；完全透明空白可能穿透点击，必须记录实际行为。
+- 在其他应用中按 Alt + 0（主键盘数字 0），确认窗口消失、恢复；快捷键被占用时提示且托盘可恢复。Alt + F4 应隐藏，托盘退出应结束进程。
 - 通过托盘切换深色底，验证透明不适用时可继续阅读。
+- 官网模式从阅读页使用托盘「返回选书页」或在窗口激活时按 Alt + Esc，确认能回到微信读书首页；切到其他应用时 Alt + Esc 应恢复 Windows 原有切窗行为。离线夹具不提供此入口。
 - 任务管理器同时记录 Qingdu.Windows 和全部所属 msedgewebview2 子进程的 CPU、内存，比较静止、翻页、隐藏状态。WebView2CompositionControl 内部使用图形捕获，不能将此方案描述为没有捕获开销；应用不另加轮询、截图循环或自动刷新。
 - 官网模式需扫码后验证阅读与翻页；手机进度、笔记同步需用户配合验证。
 
@@ -27,4 +28,5 @@ windows/build/Qingdu.Windows.exe --website
 - Mac 使用项目缓存内的 .NET 10.0.100 SDK 交叉编译与 win-x64 自包含构建成功，0 警告、0 错误；可复制完整 `windows/build/` 目录到 Windows，不能只复制 exe。也可解压 `windows/build/Qingdu-Windows-prototype-x64.zip`。
 - 独立 C# / JavaScript 审查通过；Chrome 离线验证确认 document-created 时根节点尚不存在，修复后首轮测量与最终字体、行高和段间距一致，正文金色且样式仅注入一次。
 - macOS 策略、快捷键、WebKit 外观和繁忙网页隐藏／恢复测试通过。目录迁移后重新构建 macOS 应用，编译和 ad-hoc 签名校验均通过。
-- Windows 实测状态：待验证。以上结果均不能替代 Windows 透明合成、输入、性能及 WebView2 自动测试验收。
+- Windows 11 x64（内部版本 26100）使用项目本地 .NET 10.0.100 SDK 构建并运行 `powershell -File windows/scripts/test-windows.ps1`：离线导航、首轮排版、DOM 与 Canvas 金色、WebView 透明像素、繁忙网页下原生隐藏及恢复均通过；多次原生隐藏调用耗时约 9–14 ms，不代表按键到画面消失的完整时间。
+- Windows 桌面透明合成、输入与缩放、任务管理器性能、官网登录和真实阅读仍待按上方清单人工验收。离线自动测试不能替代这些检查。
