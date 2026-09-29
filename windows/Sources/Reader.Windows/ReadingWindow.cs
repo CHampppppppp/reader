@@ -28,6 +28,7 @@ internal sealed class ReadingWindow : Window
     private Point? dragStart;
     private bool exiting;
     private bool closed;
+    private bool initializationStarted;
 
     internal ReadingWindow(bool website, bool selfTest)
     {
@@ -73,7 +74,10 @@ internal sealed class ReadingWindow : Window
             // MOD_ALT | MOD_NOREPEAT, main keyboard 0.
             hotKey = new GlobalHotKey(handle, 0x5144, 0x4001, 0x30, ToggleVisibility);
             if (!hotKey.IsRegistered)
-                MessageBox.Show(this, "Alt + 0 已被占用，使用托盘菜单显示或隐藏。", Title);
+            {
+                tray.Text = "轻读：Alt + 0 已被占用，请用托盘显示";
+                tray.ShowBalloonTip(5000, Title, "Alt + 0 已被占用，使用托盘菜单显示或隐藏。", Forms.ToolTipIcon.Warning);
+            }
             if (website)
             {
                 // Alt+Esc also cycles Windows windows; reserve it only while this window is active.
@@ -103,7 +107,29 @@ internal sealed class ReadingWindow : Window
             DragMove();
         };
         PreviewMouseLeftButtonUp += (_, _) => dragStart = null;
-        Loaded += async (_, _) => await InitializeAsync();
+        Loaded += async (_, _) =>
+        {
+            if (initializationStarted) return;
+            initializationStarted = true;
+            await InitializeAsync();
+        };
+    }
+
+    internal void Start()
+    {
+        // Create only the native handle for global hotkeys; never flash or focus the window.
+        new WindowInteropHelper(this).EnsureHandle();
+        if (!selfTest) return;
+        try
+        {
+            PrototypeChecks.VerifyHiddenStartup(this);
+            Restore();
+        }
+        catch (Exception error)
+        {
+            Console.Error.WriteLine("FAIL: " + error.GetType().Name);
+            Exit(1);
+        }
     }
 
     private async Task InitializeAsync()

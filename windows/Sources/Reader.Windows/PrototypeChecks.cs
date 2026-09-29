@@ -2,7 +2,9 @@ using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using System.Windows.Interop;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.Wpf;
 
@@ -10,6 +12,17 @@ namespace Qingdu.Windows;
 
 internal static class PrototypeChecks
 {
+    internal static void VerifyHiddenStartup(ReadingWindow window)
+    {
+        IntPtr handle = new WindowInteropHelper(window).Handle;
+        Check(handle != IntPtr.Zero && !window.IsVisible && !IsWindowVisible(handle) && !window.IsActive,
+            "hidden startup before explicit restore");
+    }
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsWindowVisible(IntPtr handle);
+
     internal static async Task RunAsync(ReadingWindow window, WebView2CompositionControl browser, string script)
     {
         var loaded = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);

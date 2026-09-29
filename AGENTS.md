@@ -3,10 +3,16 @@
 ## 产品范围
 macOS 原生微信读书悬浮浏览器，另有 Windows 11 x64 原型。Windows 先验证透明窗口与原生隐藏，再补齐完整客户端。通过官方网页登录和阅读，进度、笔记和时长由官方网页处理。不读取或记录登录凭据，不实现私有同步接口。
 
+## 双端同步原则
+- 所有改动必须在同一任务中同步处理 macOS 和 Windows 两端，包括功能、交互、外观、问题修复、资源、构建脚本及相关文档，不得只改一端后遗漏另一端。
+- 修改前先核对两端的对应实现；修改时同步落实相同的产品行为。系统 API、字体和快捷键按各平台适配，平台实现不同也必须核对另一端并说明对应处理。
+- 两端分别使用各自的验证命令和审查流程。当前环境无法运行某个平台时，仍须完成该端修改和审查，并明确记录待验证项目，不得声称该端验证通过。
+- 只有用户明确要求仅修改某个平台时，才按该次要求限定范围。
+
 ## 结构与命名
 - `mac/`：macOS 独立工程根目录；`Package.swift`、`Sources/Reader/`、`Tests/ReaderTests/`、`Resources/` 和 `scripts/` 分别放包定义、Swift 源码、测试、平台资源和构建验证脚本。
 - `windows/`：Windows 独立工程根目录；`Sources/Reader.Windows/`、`Tests/Reader.Windows.Tests/`、`Resources/` 和 `scripts/` 分别放 C# / WPF 工程、离线夹具与验收说明、平台网页脚本、PowerShell 构建验证脚本。
-- `mac/Resources/appearance.js` 与 `windows/Resources/appearance.js` 各保存一份独立网页脚本；构建和测试只读取当前平台资源，不跨目录引用。通用外观修复需要同步时分别修改并验证两份；平台差异可独立维护。macOS 的 Info.plist、AppIcon.icns、Logo 原始 PNG 与提示词放在 `mac/Resources/`；Windows 的 AppIcon.ico 放在 `windows/Resources/`，供可执行文件和托盘图标使用。
+- `mac/Resources/appearance.js` 与 `windows/Resources/appearance.js` 各保存一份独立网页脚本；构建和测试只读取当前平台资源，不跨目录引用。外观改动同步核对、修改并验证两份；平台差异分别适配，遵守双端同步原则。macOS 的 Info.plist、AppIcon.icns、Logo 原始 PNG 与提示词放在 `mac/Resources/`；Windows 的 AppIcon.ico 放在 `windows/Resources/`，供可执行文件和托盘图标使用。
 - 类型与源码文件使用 PascalCase，脚本使用小写连字符命名。临时调查文件不要写进源码目录。
 - `mac/build/`、`windows/build/`：各平台本地产物，不提交；未经用户确认不删除。
 - `mac/.build/`：Swift Package Manager 和 Swift 测试缓存；Windows 的 `bin/`、`obj/` 为 .NET 构建缓存，均不提交。
@@ -18,6 +24,7 @@ macOS 原生微信读书悬浮浏览器，另有 Windows 11 x64 原型。Windows
 - 使用系统 AppKit、WebKit、Carbon，不引入全局依赖。
 - 主线程管理窗口与 WebKit。隐藏使用 orderOut，不能仅将透明度设为零。
 - 以 accessory/LSUIElement 方式运行，不显示 Dock 入口。
+- 两个平台正常启动时阅读窗口默认隐藏，不先显示再隐藏，也不抢焦点；通过显示快捷键或托盘／菜单栏入口才打开。Windows 首次显示后初始化网页，自动测试先检查隐藏启动再显式显示夹具。启动问题通过托盘通知／菜单状态提示，模态提示等用户主动显示窗口后再打开；不修改系统开机启动配置。
 - 快捷键注册失败必须可见，菜单入口关闭前必须保证快捷键可用。
 - 全局隐藏／显示默认使用 Command + 主键盘数字 0；本次更新按用户要求将旧组合切换到该默认值，之后用户选择仍持久化。
 - macOS 阅读窗口内按 Command + Esc 返回微信读书选书首页；由原生窗口处理，不重复注册网页监听，也不注册全局返回快捷键。原生弹窗打开时保留弹窗的键盘处理。

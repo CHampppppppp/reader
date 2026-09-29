@@ -11,6 +11,9 @@ internal static class Program
         bool selfTest = Array.IndexOf(args, "--self-test") >= 0;
         bool website = !selfTest && Array.IndexOf(args, "--website") >= 0;
         var app = new Application { ShutdownMode = ShutdownMode.OnMainWindowClose };
-        return app.Run(new ReadingWindow(website, selfTest));
+        var window = new ReadingWindow(website, selfTest);
+        app.MainWindow = window;
+        app.Startup += (_, _) => window.Start();
+        return app.Run();
     }
 }

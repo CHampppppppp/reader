@@ -11,11 +11,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     private var loadingObservation: NSKeyValueObservation?
     private var statusMenuItem: NSMenuItem?
     private var pageStatus = "轻读" {
-        didSet { statusMenuItem?.title = pageStatus }
+        didSet { statusMenuItem?.title = menuStatus }
     }
     private var appearanceTemplate: String?
     private var previousApp: NSRunningApplication?
     private var appMenu: NSMenu!
+    private var pendingStartupMessage: String? {
+        didSet { statusMenuItem?.title = menuStatus }
+    }
+    private var menuStatus: String {
+        pendingStartupMessage?.replacingOccurrences(of: "\n\n", with: "；") ?? pageStatus
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         appearanceTemplate = Bundle.main.url(forResource: "appearance", withExtension: "js")
@@ -27,8 +33,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         let registration = hotKey.register(Shortcut.choices[preferences.shortcutIndex])
         if registration != noErr { preferences.hideMenuIcon = false }
         refreshMenu()
-        webView.load(URLRequest(url: preferences.lastURL))
-        showWindow()
         var startupIssues: [String] = []
         if registration != noErr {
             startupIssues.append("快捷键注册失败，可能与其他应用冲突（错误码 \(registration)）。请在设置菜单中选择另一个快捷键。菜单栏入口已保留。")
@@ -39,7 +43,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         if !webView.backgroundTransparencyAvailable {
             startupIssues.append("当前系统的 WebKit 背景接口不可用，阅读功能可继续使用，但无法去除底层背景。")
         }
-        if !startupIssues.isEmpty { message("启动提示", startupIssues.joined(separator: "\n\n")) }
+        if !startupIssues.isEmpty {
+            pendingStartupMessage = startupIssues.joined(separator: "\n\n")
+            preferences.hideMenuIcon = false
+            refreshMenu()
+        }
+        webView.load(URLRequest(url: preferences.lastURL))
     }
 
     private func buildWindow() {
@@ -129,6 +138,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         panel.makeKeyAndOrderFront(nil)
         panel.makeFirstResponder(webView)
         refreshMenu()
+        if let startupMessage = pendingStartupMessage {
+            pendingStartupMessage = nil
+            message("启动提示", startupMessage)
+        }
     }
 
     @objc private func hideWindow() {
@@ -169,7 +182,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         let menu = NSMenu()
         menu.delegate = self
         menu.autoenablesItems = false
-        let status = NSMenuItem(title: pageStatus, action: nil, keyEquivalent: "")
+        let status = NSMenuItem(title: menuStatus, action: nil, keyEquivalent: "")
         status.isEnabled = false
         statusMenuItem = status
         menu.addItem(status)
