@@ -14,6 +14,10 @@
   // Install before site scripts measure text and cache canvas page coordinates.
   // document.body does not exist yet at documentStart; use documentElement below.
   const settings = __READER_SETTINGS__;
+  const colors = ['#D4AF37', '#FFFFFF', '#202124', '#A0A0A0', '#7CBF88', '#82B1FF'];
+  const textColor = colors.includes(settings.textColor) ? settings.textColor : colors[0];
+  const outlineColor = textColor === '#202124' ? '#F5F5F5' : '#29251E';
+  const rgb = [1, 3, 5].map(offset => parseInt(textColor.slice(offset, offset + 2), 16) / 255);
   const id = 'qingdu-appearance';
   let style = document.getElementById(id);
   if (!style) {
@@ -45,6 +49,11 @@
     </defs>`;
     (document.body || document.documentElement).appendChild(svg);
   }
+  // Update the existing filter too: changing the menu must recolor already-painted canvas text.
+  const filters = document.getElementById('qingdu-text-filters');
+  filters.querySelector('feColorMatrix').setAttribute('values',
+    `0 0 0 0 ${rgb[0]} 0 0 0 0 ${rgb[1]} 0 0 0 0 ${rgb[2]} 0 0 0 1 0`);
+  filters.querySelector('feFlood').setAttribute('flood-color', outlineColor);
   const readingStyle = `
     /* Keep layout boxes intact: the reader measures them for canvas pagination. */
     body:has(.readerChapterContent, .wr_horizontalReader) :is(.readerTopBar, .readerControls, .readerBottomBar, .wr_reader_float_corner_bookmark_wrapper),
@@ -75,9 +84,9 @@
     .readerChapterContent .renderTargetContent :is(p, span, div, a, h1, h2, h3, h4, h5, h6, pre, code),
     .readerChapterContent .renderTargetPageInfo_header,
     .readerChapterContent .renderTargetPageInfo_header * {
-      text-shadow: -0.65px 0 #29251E, 0.65px 0 #29251E, 0 -0.65px #29251E, 0 0.65px #29251E;
-      color: #D4AF37 !important;
-      -webkit-text-fill-color: #D4AF37 !important;
+      text-shadow: -0.65px 0 ${outlineColor}, 0.65px 0 ${outlineColor}, 0 -0.65px ${outlineColor}, 0 0.65px ${outlineColor};
+      color: ${textColor} !important;
+      -webkit-text-fill-color: ${textColor} !important;
     }
     .readerChapterContent .wr_canvasContainer canvas {
       filter: url('#qingdu-gold-text') !important;

@@ -5,12 +5,15 @@ final class AppearanceDelegate: NSObject, NSApplicationDelegate, WKNavigationDel
     private var window: NSPanel!
     private var webView: WKWebView!
     private var source = ""
+    private var template = ""
+    private var colorIndex = 0
+    private let colors = ReadingColor.allCases.map { $0.rawValue } + ["invalid-color"]
     private var tested = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
-            source = try String(contentsOfFile: "Resources/appearance.js", encoding: .utf8)
-                .replacingOccurrences(of: "__READER_SETTINGS__", with: "{transparent:true,opacity:0}")
+            template = try String(contentsOfFile: "Resources/appearance.js", encoding: .utf8)
+            source = template.replacingOccurrences(of: "__READER_SETTINGS__", with: "{transparent:true,opacity:0}")
         } catch { fail("Cannot load appearance resource") }
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .nonPersistent()
@@ -31,6 +34,8 @@ final class AppearanceDelegate: NSObject, NSApplicationDelegate, WKNavigationDel
         <body><div class="wr_horizontalReader"><div class="readerChapterContent">
         <div class="renderTargetContent"><p id="text" style="color:black;font-size:20px">Golden reading text</p><p>Second paragraph</p></div>
         <div class="wr_canvasContainer"><canvas id="goldCanvas" width="80" height="40"></canvas></div>
+        <canvas id="illustration" width="20" height="20" style="position:absolute;left:150px;top:80px"></canvas>
+        <div style="position:absolute;left:180px;top:80px;width:10px;height:10px;background:red"></div>
         <div id="reference" style="position:absolute;left:100px;top:80px;width:10px;height:10px;background:#D4AF37"></div>
         <button class="renderTarget_pager_button">上一页</button><button class="renderTarget_pager_button renderTarget_pager_button_right">下一页</button>
         </div><div class="readerTopBar">Reader header</div></div><div id="outside">Unchanged surrounding UI</div>
@@ -41,9 +46,10 @@ final class AppearanceDelegate: NSObject, NSApplicationDelegate, WKNavigationDel
         window.firstLayout = {height: getComputedStyle(document.querySelector('#text')).lineHeight,
           margin: getComputedStyle(document.querySelector('#text')).marginBottom};
         const ctx=document.querySelector('canvas').getContext('2d');ctx.fillStyle='black';ctx.fillRect(10,10,10,10);
+        const picture=document.querySelector('#illustration').getContext('2d');picture.fillStyle='red';picture.fillRect(0,0,20,20);
         window.turns=0;document.addEventListener('keydown',e=>{if(e.key==='ArrowRight')window.turns++});</script></body></html>
         """, baseURL: URL(string: "https://weread.qq.com/web/reader/local-fixture"))
-        DispatchQueue.main.asyncAfter(deadline: .now() + 20) { self.fail("Appearance fixture timed out") }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 40) { self.fail("Appearance fixture timed out") }
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
@@ -59,18 +65,18 @@ final class AppearanceDelegate: NSObject, NSApplicationDelegate, WKNavigationDel
         webView.evaluateJavaScript("""
         (()=>{
           document.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}));
-          const canvas=document.querySelector('canvas'), r=canvas.getBoundingClientRect(), ref=document.querySelector('#reference').getBoundingClientRect();
-          return {gold:getComputedStyle(document.querySelector('#text')).color==='rgb(212, 175, 55)',
+          const canvas=document.querySelector('#goldCanvas'), r=canvas.getBoundingClientRect(), ref=document.querySelector('#reference').getBoundingClientRect(), picture=document.querySelector('#illustration').getBoundingClientRect();
+          return {gold:getComputedStyle(document.querySelector('#text')).color===getComputedStyle(document.querySelector('#reference')).backgroundColor,
             hidden:[...document.querySelectorAll('.renderTarget_pager_button,[title="下一页"]')].every(e=>getComputedStyle(e).display==='none'),
             outside:getComputedStyle(document.querySelector('#outside')).color==='rgb(20, 40, 60)',
             purchase:getComputedStyle(document.querySelector('#purchase')).display!=='none',
             unique:document.querySelectorAll('#qingdu-appearance').length===1&&document.querySelectorAll('#qingdu-text-filters').length===1,
-            keys:window.turns===1,
+            keys:window.turns===\(colorIndex + 1),
             stableLayout:window.firstLayout.height===getComputedStyle(document.querySelector('#text')).lineHeight&&window.firstLayout.margin===getComputedStyle(document.querySelector('#text')).marginBottom,
             density:parseFloat(getComputedStyle(document.querySelector('#text')).lineHeight)===31&&parseFloat(getComputedStyle(document.querySelector('#text')).marginBottom)===12,
             zoom:innerWidth===400,
             transparent:[document.body,document.querySelector('.readerChapterContent'),document.querySelector('.readerTopBar')].every(e=>getComputedStyle(e).backgroundColor.endsWith(', 0)')),
-            x:r.left+15, y:r.top+15, refX:ref.left+5, refY:ref.top+5};
+            x:r.left+15, y:r.top+15, refX:ref.left+5, refY:ref.top+5, picX:picture.left+5, picY:picture.top+5};
         })()
         """) { result, error in
             guard error == nil, let result = result as? [String: Any] else { self.fail("Cannot inspect fixture") }
@@ -78,12 +84,13 @@ final class AppearanceDelegate: NSObject, NSApplicationDelegate, WKNavigationDel
                 guard result[key] as? Bool == true else { self.fail("Appearance rule failed: \(key)") }
             }
             guard let x = result["x"] as? Double, let y = result["y"] as? Double,
-                  let refX = result["refX"] as? Double, let refY = result["refY"] as? Double else { self.fail("Canvas position missing") }
-            self.verifyCanvas(x: x, y: y, refX: refX, refY: refY)
+                  let refX = result["refX"] as? Double, let refY = result["refY"] as? Double,
+                  let picX = result["picX"] as? Double, let picY = result["picY"] as? Double else { self.fail("Canvas position missing") }
+            self.verifyCanvas(x: x, y: y, refX: refX, refY: refY, picX: picX, picY: picY)
         }
     }
 
-    private func verifyCanvas(x: Double, y: Double, refX: Double, refY: Double) {
+    private func verifyCanvas(x: Double, y: Double, refX: Double, refY: Double, picX: Double, picY: Double) {
         let configuration = WKSnapshotConfiguration()
         configuration.afterScreenUpdates = true
         webView.takeSnapshot(with: configuration) { image, error in
@@ -99,11 +106,33 @@ final class AppearanceDelegate: NSObject, NSApplicationDelegate, WKNavigationDel
             guard abs(color.redComponent - reference.redComponent) < 0.02,
                   abs(color.greenComponent - reference.greenComponent) < 0.02,
                   abs(color.blueComponent - reference.blueComponent) < 0.02 else {
-                self.fail("Canvas was not rendered gold: \(color)")
+                self.fail("Canvas did not match selected color: \(color)")
             }
-            print("PASS: fully transparent WebKit pixels, gold DOM and canvas at 100% zoom, compact spacing, hidden page buttons, unchanged surrounding UI and key handler")
-            fflush(stdout)
-            NSApp.terminate(nil)
+            guard let picture = bitmap.colorAt(x: Int(picX * scale), y: Int(picY * scale))?.usingColorSpace(.sRGB) else {
+                self.fail("Cannot inspect illustration")
+            }
+            // Compare against a CSS red swatch in the same snapshot for display color profiles.
+            guard let pictureReference = bitmap.colorAt(x: Int((picX + 30) * scale), y: Int(picY * scale))?.usingColorSpace(.sRGB),
+                  abs(picture.redComponent - pictureReference.redComponent) < 0.02,
+                  abs(picture.greenComponent - pictureReference.greenComponent) < 0.02,
+                  abs(picture.blueComponent - pictureReference.blueComponent) < 0.02,
+                  picture.alphaComponent > 0.99 else { self.fail("Illustration was recolored") }
+            print("PASS: DOM and canvas color \(self.colors[self.colorIndex]), stable layout, transparent pixels and unchanged illustrations")
+            self.colorIndex += 1
+            guard self.colorIndex < self.colors.count else {
+                fflush(stdout)
+                NSApp.terminate(nil)
+                return
+            }
+            let nextColor = self.colors[self.colorIndex]
+            let expected = ReadingColor(rawValue: nextColor)?.rawValue ?? ReadingColor.gold.rawValue
+            let script = self.template.replacingOccurrences(of: "__READER_SETTINGS__",
+                with: "{transparent:true,opacity:0,textColor:'\(nextColor)'}")
+                + ";document.querySelector('#reference').style.backgroundColor='\(expected)';"
+            self.webView.evaluateJavaScript(script) { _, error in
+                guard error == nil else { self.fail("Color change script failed") }
+                self.verifyDOM()
+            }
         }
     }
 

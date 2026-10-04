@@ -1,15 +1,29 @@
 import AppKit
 import Carbon
 
+struct HotKeyPressState {
+    private var isPressed = false
+
+    mutating func update(pressed: Bool) -> Bool {
+        let shouldTrigger = pressed && !isPressed
+        isPressed = pressed
+        return shouldTrigger
+    }
+}
+
 final class GlobalHotKey {
     private var reference: EventHotKeyRef?
     private var handler: EventHandlerRef?
     private var activeID: UInt32 = 0
+    private var pressState = HotKeyPressState()
     var onPress: (() -> Void)?
     var isRegistered: Bool { reference != nil }
 
     init() {
-        var event = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
+        var events = [
+            EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed)),
+            EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyReleased))
+        ]
         InstallEventHandler(GetApplicationEventTarget(), { _, event, context in
             guard let context, let event else { return OSStatus(eventNotHandledErr) }
             let hotKey = Unmanaged<GlobalHotKey>.fromOpaque(context).takeUnretainedValue()
@@ -19,9 +33,11 @@ final class GlobalHotKey {
             guard status == noErr, identifier.signature == 0x52454144, identifier.id == hotKey.activeID else {
                 return OSStatus(eventNotHandledErr)
             }
-            hotKey.onPress?()
+            if hotKey.pressState.update(pressed: GetEventKind(event) == UInt32(kEventHotKeyPressed)) {
+                hotKey.onPress?()
+            }
             return noErr
-        }, 1, &event, Unmanaged.passUnretained(self).toOpaque(), &handler)
+        }, 2, &events, Unmanaged.passUnretained(self).toOpaque(), &handler)
     }
 
     // Register the replacement first so a conflict never loses the working shortcut.
@@ -36,6 +52,7 @@ final class GlobalHotKey {
         if let reference { UnregisterEventHotKey(reference) }
         reference = replacement
         activeID = nextID
+        pressState = HotKeyPressState()
         return noErr
     }
 

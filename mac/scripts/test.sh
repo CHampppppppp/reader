@@ -6,3 +6,5 @@ swiftc Sources/Reader/Preferences.swift Tests/ReaderTests/ReaderPolicyTests.swif
 .build/reader-policy-tests
 swiftc Sources/Reader/Preferences.swift Sources/Reader/GlobalHotKey.swift Tests/ReaderTests/HotKeyTests.swift -o .build/reader-hotkey-tests
 .build/reader-hotkey-tests
+swiftc Sources/Reader/ReadingPanel.swift Tests/ReaderTests/ReadingKeyTests.swift -o .build/reader-reading-key-tests
+.build/reader-reading-key-tests

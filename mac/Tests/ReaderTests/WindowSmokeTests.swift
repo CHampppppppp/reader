@@ -2,7 +2,7 @@ import AppKit
 import WebKit
 
 final class SmokeDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKScriptMessageHandler {
-    private var window: NSPanel!
+    private var window: ReadingPanel!
     private var webView: WKWebView!
     private var didStart = false
     private var webCompleted = false
@@ -10,7 +10,7 @@ final class SmokeDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Isolated, offscreen fixture: no website, account, cookies, or user preferences.
-        window = NSPanel(contentRect: NSRect(x: -10000, y: -10000, width: 400, height: 400),
+        window = ReadingPanel(contentRect: NSRect(x: -10000, y: -10000, width: 400, height: 400),
                          styleMask: [.borderless], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         let configuration = WKWebViewConfiguration()
@@ -19,6 +19,7 @@ final class SmokeDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate
         webView = WKWebView(frame: window.contentView!.bounds, configuration: configuration)
         webView.navigationDelegate = self
         window.contentView = webView
+        window.wheelContentView = webView
         window.orderFrontRegardless()
         webView.loadHTMLString("<html><body>Isolated window lifecycle test</body></html>", baseURL: nil)
         DispatchQueue.main.asyncAfter(deadline: .now() + 15) { self.fail("Timed out") }
@@ -27,6 +28,24 @@ final class SmokeDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         guard !didStart else { return }
         didStart = true
+        window.makeKey()
+        webView.evaluateJavaScript("window.pageKeys=[]; document.addEventListener('keydown', e => window.pageKeys.push(e.key))") { _, error in
+            guard error == nil else { self.fail("Cannot install isolated key probe") }
+            self.window.sendPageKey(next: true, timestamp: 1)
+            self.window.sendPageKey(next: false, timestamp: 2)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                webView.evaluateJavaScript("JSON.stringify(window.pageKeys)") { result, error in
+                    guard error == nil, result as? String == "[\"ArrowRight\",\"ArrowLeft\"]" else {
+                        self.fail("Native wheel page keys did not reach WebKit")
+                    }
+                    print("PASS: native wheel page keys reach WebKit once each")
+                    self.testBusyHide()
+                }
+            }
+        }
+    }
+
+    private func testBusyHide() {
         // Keep the WebContent process busy for 2 seconds. The native hide must not wait.
         webView.evaluateJavaScript("window.webkit.messageHandlers.busyStarted.postMessage('started'); const start = performance.now(); while (performance.now() - start < 2000) {} ; true") { result, error in
             self.webCompleted = true

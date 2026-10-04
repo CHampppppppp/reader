@@ -18,7 +18,16 @@ struct HotKeyTests {
         check(candidate.isRegistered, "Working registration survives replacement failure")
         owner = nil
         check(candidate.register(first) == noErr, "Same shortcut can retry after conflict clears")
-        print("PASS: 7 native shortcut registration checks")
+        var press = HotKeyPressState()
+        check(press.update(pressed: true), "First press triggers")
+        check(!press.update(pressed: true), "Held key repeat is ignored")
+        check(!press.update(pressed: false), "Release does not toggle")
+        check(press.update(pressed: true), "Next press after release triggers")
+        let arrow = GlobalHotKey()
+        let status = arrow.register(Shortcut.choices[Shortcut.defaultIndex])
+        check(status == noErr || status == OSStatus(eventHotKeyExistsErr), "Plain Command + Up Arrow is supported or already reserved")
+        print(status == noErr ? "PASS: Command + Up Arrow native registration" : "SKIP: Command + Up Arrow already reserved by a running app")
+        print("PASS: native shortcut conflict, retry and repeat suppression checks")
         withExtendedLifetime(candidate) {}
     }
 

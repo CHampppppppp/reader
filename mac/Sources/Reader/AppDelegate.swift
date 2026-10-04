@@ -5,6 +5,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     private let preferences = Preferences()
     private let hotKey = GlobalHotKey()
     private var panel: ReadingPanel!
+    private var mouseCloseButton: ReaderCloseButton!
     private var webView: TransparentWebView!
     private var statusItem: NSStatusItem!
     private var addressObservation: NSKeyValueObservation?
@@ -91,7 +92,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         content.layer?.masksToBounds = true
         panel.contentView = content
         content.addSubview(webView)
+        mouseCloseButton = ReaderCloseButton(title: "×", target: self, action: #selector(hideWindow))
+        mouseCloseButton.bezelStyle = .circular
+        mouseCloseButton.font = .systemFont(ofSize: 20, weight: .medium)
+        mouseCloseButton.toolTip = "关闭阅读窗口（隐藏）"
+        mouseCloseButton.setAccessibilityLabel("关闭阅读窗口（隐藏）")
+        mouseCloseButton.translatesAutoresizingMaskIntoConstraints = false
+        content.addSubview(mouseCloseButton)
+        panel.wheelContentView = webView
+        panel.isReadingPage = { [weak self] in
+            guard let url = self?.webView.url else { return false }
+            return ReaderPolicy.isWeRead(url) && url.path.hasPrefix("/web/reader/")
+        }
+        applyPageTurnMode()
         NSLayoutConstraint.activate([
+            mouseCloseButton.topAnchor.constraint(equalTo: content.topAnchor, constant: 8),
+            mouseCloseButton.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -8),
+            mouseCloseButton.widthAnchor.constraint(equalToConstant: 30),
+            mouseCloseButton.heightAnchor.constraint(equalToConstant: 30),
             webView.topAnchor.constraint(equalTo: content.topAnchor),
             webView.leadingAnchor.constraint(equalTo: content.leadingAnchor),
             webView.trailingAnchor.constraint(equalTo: content.trailingAnchor),
@@ -100,6 +118,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         addressObservation = webView.observe(\.url, options: [.new]) { [weak self] view, _ in
             guard let self, let url = view.url else { return }
             self.preferences.remember(url)
+            self.panel.resetWheelPaging()
             self.applyReadingScale()
         }
         loadingObservation = webView.observe(\.isLoading, options: [.new]) { [weak self] view, _ in
@@ -146,6 +165,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
     @objc private func hideWindow() {
         WindowVisibility.hide(panel)
+        panel.resetWheelPaging()
         appMenu?.cancelTrackingWithoutAnimation()
         if let sheet = panel.attachedSheet { panel.endSheet(sheet, returnCode: .abort) }
         if NSApp.isActive { previousApp?.activate(options: []) }
@@ -190,6 +210,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         menu.addItem(item(panel.isVisible ? "隐藏窗口  \(Shortcut.choices[preferences.shortcutIndex].label)" : "显示窗口  \(Shortcut.choices[preferences.shortcutIndex].label)", #selector(toggleWindow)))
         menu.addItem(.separator())
         menu.addItem(item("透明阅读背景", #selector(toggleTransparency), checked: preferences.transparent))
+        let textColor = NSMenuItem(title: "字体颜色", action: nil, keyEquivalent: "")
+        let colorMenu = NSMenu()
+        for (index, color) in ReadingColor.allCases.enumerated() {
+            colorMenu.addItem(item(color.label, #selector(changeTextColor(_:)), tag: index,
+                                   checked: preferences.textColor == color))
+        }
+        textColor.submenu = colorMenu
+        menu.addItem(textColor)
+        let paging = NSMenuItem(title: "翻页方式", action: nil, keyEquivalent: "")
+        let pagingMenu = NSMenu()
+        for (index, mode) in PageTurnMode.allCases.enumerated() {
+            pagingMenu.addItem(item(mode.label, #selector(changePageTurnMode(_:)), tag: index,
+                                     checked: preferences.pageTurnMode == mode))
+        }
+        paging.submenu = pagingMenu
+        menu.addItem(paging)
         let background = NSMenuItem(title: "阅读背景不透明度", action: nil, keyEquivalent: "")
         let backgroundMenu = NSMenu()
         for value in [0, 15, 35, 55, 72, 90, 100] {
@@ -213,13 +249,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         for (index, value) in Shortcut.choices.enumerated() {
             shortcutMenu.addItem(item(value.label, #selector(changeShortcut(_:)), tag: index, checked: preferences.shortcutIndex == index))
         }
+        shortcut.toolTip = "默认 ⌘↑ 全局显示／隐藏；按住只切换一次。"
         shortcut.submenu = shortcutMenu
         menu.addItem(shortcut)
         let hideIcon = item("隐藏菜单栏图标", #selector(toggleMenuIcon), checked: preferences.hideMenuIcon)
         hideIcon.isEnabled = hotKey.isRegistered
         menu.addItem(hideIcon)
         menu.addItem(.separator())
-        menu.addItem(item("返回选书页（⌘Esc）", #selector(goHome)))
+        menu.addItem(item("返回选书页（↓）", #selector(goHome)))
         let back = item("后退", #selector(goBack))
         back.isEnabled = webView.canGoBack
         menu.addItem(back)
@@ -258,7 +295,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         let settings = item("设置", #selector(openSettings(_:))); settings.keyEquivalent = ","
         let hideItem = item("隐藏", #selector(hideWindow)); hideItem.keyEquivalent = "w"
         let refresh = item("重新加载", #selector(reloadPage)); refresh.keyEquivalent = "r"
-        let home = item("返回选书页（⌘Esc）", #selector(goHome))
+        let home = item("返回选书页（↓）", #selector(goHome))
         [home, settings, hideItem, refresh].forEach { view.addItem($0) }
         viewItem.submenu = view
         main.addItem(viewItem)
@@ -266,6 +303,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     }
 
     @objc private func toggleTransparency() { preferences.transparent.toggle(); applyAppearance(); refreshMenu() }
+    @objc private func changePageTurnMode(_ sender: NSMenuItem) {
+        guard PageTurnMode.allCases.indices.contains(sender.tag) else { return }
+        preferences.pageTurnMode = PageTurnMode.allCases[sender.tag]
+        applyPageTurnMode(); refreshMenu()
+    }
+
+    private func applyPageTurnMode() {
+        panel.wheelPagingEnabled = preferences.pageTurnMode == .wheel
+        mouseCloseButton.isHidden = !panel.wheelPagingEnabled
+    }
+    @objc private func changeTextColor(_ sender: NSMenuItem) {
+        guard ReadingColor.allCases.indices.contains(sender.tag) else { return }
+        preferences.textColor = ReadingColor.allCases[sender.tag]
+        applyAppearance(); refreshMenu()
+    }
     @objc private func changeBackground(_ sender: NSMenuItem) {
         preferences.backgroundOpacity = Double(sender.tag) / 100
         preferences.transparent = true
@@ -309,7 +361,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         applyReadingScale()
         guard let appearanceTemplate else { return }
         let source = appearanceTemplate.replacingOccurrences(of: "__READER_SETTINGS__", with:
-            "{transparent: \(preferences.transparent), opacity: \(preferences.backgroundOpacity)}")
+            "{transparent: \(preferences.transparent), opacity: \(preferences.backgroundOpacity), textColor: '\(preferences.textColor.rawValue)'}")
         let controller = webView.configuration.userContentController
         controller.removeAllUserScripts()
         controller.addUserScript(WKUserScript(source: source, injectionTime: .atDocumentStart, forMainFrameOnly: true))
@@ -321,7 +373,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
     @objc private func showHelp() {
         showWindow()
-        message("轻读", "登录后直接使用微信读书网页，进度和笔记由网页同步。\n\n全局 \(Shortcut.choices[preferences.shortcutIndex].label)：隐藏／恢复\n⌘Esc：返回选书页　⌘W：隐藏　⌘,：设置　⌘R：刷新\n按住 Option 拖动阅读区移动窗口，拖动窗口边缘缩放。设置自动保存，重启后继续沿用。\n\n背景透明只适配阅读页；书架、登录框保留原样。某些画布阅读模式可能仍有底色，可调整整个窗口不透明度或恢复易读外观。\n\n隐藏菜单图标后，再次从 Finder 打开 app 可恢复入口。应用进程仍会出现在活动监视器中。")
+        message("轻读", "登录后直接使用微信读书网页，进度和笔记由网页同步。\n\n全局 \(Shortcut.choices[preferences.shortcutIndex].label)：隐藏／恢复\n聚焦轻读时：↓ 返回选书页　←／→：上一页／下一页　⌘W：隐藏　⌘,：设置　⌘R：刷新\n按住 Option 拖动阅读区移动窗口，拖动窗口边缘缩放。设置自动保存，重启后继续沿用。\n\n背景透明只适配阅读页；书架、登录框保留原样。某些画布阅读模式可能仍有底色，可调整整个窗口不透明度或恢复易读外观。\n\n隐藏菜单图标后，再次从 Finder 打开 app 可恢复入口。应用进程仍会出现在活动监视器中。")
     }
 
     private func message(_ title: String, _ text: String) {

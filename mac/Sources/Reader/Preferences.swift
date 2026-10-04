@@ -10,9 +10,10 @@ struct Shortcut: Equatable {
         Shortcut(keyCode: UInt32(kVK_Space), modifiers: UInt32(optionKey), label: "⌥ Space"),
         Shortcut(keyCode: UInt32(kVK_Space), modifiers: UInt32(controlKey | optionKey), label: "⌃⌥ Space"),
         Shortcut(keyCode: UInt32(kVK_ANSI_R), modifiers: UInt32(cmdKey | shiftKey), label: "⇧⌘ R"),
-        Shortcut(keyCode: UInt32(kVK_ANSI_0), modifiers: UInt32(cmdKey), label: "⌘0")
+        Shortcut(keyCode: UInt32(kVK_ANSI_0), modifiers: UInt32(cmdKey), label: "⌘0"),
+        Shortcut(keyCode: UInt32(kVK_UpArrow), modifiers: UInt32(cmdKey), label: "⌘↑")
     ]
-    static let defaultIndex = 3
+    static let defaultIndex = 4
 }
 
 enum ReaderPolicy {
@@ -39,14 +40,44 @@ enum ReaderPolicy {
     }
 }
 
+enum ReadingColor: String, CaseIterable {
+    case gold = "#D4AF37", white = "#FFFFFF", black = "#202124"
+    case gray = "#A0A0A0", green = "#7CBF88", blue = "#82B1FF"
+
+    var label: String {
+        switch self {
+        case .gold: return "金色"
+        case .white: return "白色"
+        case .black: return "黑色"
+        case .gray: return "灰色"
+        case .green: return "护眼绿"
+        case .blue: return "蓝色"
+        }
+    }
+}
+
+enum PageTurnMode: String, CaseIterable {
+    case keyboard, wheel
+    var label: String { self == .keyboard ? "方向键翻页" : "鼠标滚轮翻页" }
+}
+
 final class Preferences {
-    private let store = UserDefaults.standard
-    init() {
+    private let store: UserDefaults
+    init(store: UserDefaults = .standard) {
+        self.store = store
         if !store.bool(forKey: "clearBackgroundApplied") {
             store.set(true, forKey: "transparent")
             store.set(0.0, forKey: "backgroundOpacity")
             store.set(true, forKey: "clearBackgroundApplied")
         }
+    }
+    var textColor: ReadingColor {
+        get { ReadingColor(rawValue: store.string(forKey: "textColor") ?? "") ?? .gold }
+        set { store.set(newValue.rawValue, forKey: "textColor") }
+    }
+    var pageTurnMode: PageTurnMode {
+        get { PageTurnMode(rawValue: store.string(forKey: "pageTurnMode") ?? "") ?? .keyboard }
+        set { store.set(newValue.rawValue, forKey: "pageTurnMode") }
     }
     var transparent: Bool {
         get { store.object(forKey: "transparent") as? Bool ?? true }
@@ -61,13 +92,13 @@ final class Preferences {
         set { store.set(ReaderPolicy.bounded(newValue, fallback: 1, range: 0.25...1), forKey: "windowOpacity") }
     }
     var shortcutIndex: Int {
-        // A new preference version applies the requested ⌘0 default to existing installs once.
+        // A new preference version applies the requested Command + Up Arrow to existing installs once.
         // Subsequent choices persist without resetting on every launch.
         get {
-            let n = store.object(forKey: "shortcutIndex.v2") as? Int ?? Shortcut.defaultIndex
+            let n = store.object(forKey: "shortcutIndex.v4") as? Int ?? Shortcut.defaultIndex
             return Shortcut.choices.indices.contains(n) ? n : Shortcut.defaultIndex
         }
-        set { store.set(newValue, forKey: "shortcutIndex.v2") }
+        set { store.set(newValue, forKey: "shortcutIndex.v4") }
     }
     var hideMenuIcon: Bool {
         get { store.bool(forKey: "hideMenuIcon") }
