@@ -130,6 +130,12 @@ internal sealed class ReadingWindow : Window
         };
         PreviewKeyDown += (_, e) =>
         {
+            if (ReaderKeys.HidesReader(e.Key, Keyboard.Modifiers, IsActive && IsEnabled))
+            {
+                e.Handled = true;
+                if (!e.IsRepeat) HideReader();
+                return;
+            }
             if (!website || !ReaderKeys.ReturnsToBooks(e.Key, Keyboard.Modifiers, IsActive)) return;
             e.Handled = true;
             if (!e.IsRepeat)

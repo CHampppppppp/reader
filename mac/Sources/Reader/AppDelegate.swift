@@ -71,6 +71,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
         panel.minSize = NSSize(width: 360, height: 320)
         panel.delegate = self
+        panel.onHide = { [weak self] in self?.hideWindow() }
         panel.onReturnToBooks = { [weak self] in self?.goHome() }
         panel.center()
         panel.setFrameAutosaveName("ReadingPanel")
@@ -373,7 +374,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
     @objc private func showHelp() {
         showWindow()
-        message("轻读", "登录后直接使用微信读书网页，进度和笔记由网页同步。\n\n全局 \(Shortcut.choices[preferences.shortcutIndex].label)：隐藏／恢复\n聚焦轻读时：↓ 返回选书页　←／→：上一页／下一页　⌘W：隐藏　⌘,：设置　⌘R：刷新\n按住 Option 拖动阅读区移动窗口，拖动窗口边缘缩放。设置自动保存，重启后继续沿用。\n\n背景透明只适配阅读页；书架、登录框保留原样。某些画布阅读模式可能仍有底色，可调整整个窗口不透明度或恢复易读外观。\n\n隐藏菜单图标后，再次从 Finder 打开 app 可恢复入口。应用进程仍会出现在活动监视器中。")
+        message("轻读", "登录后直接使用微信读书网页，进度和笔记由网页同步。\n\n全局 \(Shortcut.choices[preferences.shortcutIndex].label)：隐藏／恢复\n聚焦轻读时：↑ 隐藏　↓ 返回选书页　←／→：上一页／下一页　⌘W：隐藏　⌘,：设置　⌘R：刷新\n按住 Option 拖动阅读区移动窗口，拖动窗口边缘缩放。设置自动保存，重启后继续沿用。\n\n背景透明只适配阅读页；书架、登录框保留原样。某些画布阅读模式可能仍有底色，可调整整个窗口不透明度或恢复易读外观。\n\n隐藏菜单图标后，再次从 Finder 打开 app 可恢复入口。应用进程仍会出现在活动监视器中。")
     }
 
     private func message(_ title: String, _ text: String) {

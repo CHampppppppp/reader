@@ -30,6 +30,7 @@ final class ReaderCloseButton: NSButton {
 }
 
 final class ReadingPanel: NSPanel {
+    var onHide: (() -> Void)?
     var onReturnToBooks: (() -> Void)?
     var wheelPagingEnabled = false { didSet { resetWheelPaging() } }
     var isReadingPage: (() -> Bool)?
@@ -39,24 +40,29 @@ final class ReadingPanel: NSPanel {
     override var canBecomeMain: Bool { true }
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        if handleReturnToBooks(event) { return true }
+        if handleReadingAction(event) { return true }
         return super.performKeyEquivalent(with: event)
     }
 
-    private func handleReturnToBooks(_ event: NSEvent) -> Bool {
+    private func handleReadingAction(_ event: NSEvent) -> Bool {
         let modifiers = event.modifierFlags.intersection([.command, .control, .option, .shift])
-        if event.type == .keyDown, event.keyCode == 125, modifiers.isEmpty,
-           NSApp.isActive, isKeyWindow, attachedSheet == nil, NSApp.modalWindow == nil, let onReturnToBooks {
-            if !event.isARepeat { onReturnToBooks() }
-            return true
+        guard event.type == .keyDown, modifiers.isEmpty, NSApp.isActive, isKeyWindow,
+              attachedSheet == nil, NSApp.modalWindow == nil else { return false }
+        let action: (() -> Void)?
+        switch event.keyCode {
+        case 126: action = onHide
+        case 125: action = onReturnToBooks
+        default: return false
         }
-        return false
+        guard let action else { return false }
+        if !event.isARepeat { action() }
+        return true
     }
 
     override func sendEvent(_ event: NSEvent) {
         if handleWheel(event) { return }
         // Plain arrows follow the ordinary key-event path, before WebKit consumes them.
-        if handleReturnToBooks(event) { return }
+        if handleReadingAction(event) { return }
         if event.type == .leftMouseDown, event.modifierFlags.contains(.option), attachedSheet == nil {
             performDrag(with: event)
             return

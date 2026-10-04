@@ -17,6 +17,10 @@ internal static class PrototypeChecks
     {
         Check(ReaderKeys.VisibilityKey == 0x26 && ReaderKeys.VisibilityModifiers == 0x4002,
             "Ctrl + Up Arrow global binding with repeat suppression");
+        Check(ReaderKeys.HidesReader(Key.Up, ModifierKeys.None, true), "focused Up hides");
+        Check(!ReaderKeys.HidesReader(Key.Up, ModifierKeys.None, false), "inactive Up does not hide");
+        Check(!ReaderKeys.HidesReader(Key.Up, ModifierKeys.Control, true), "Ctrl Up remains global");
+        Check(!ReaderKeys.HidesReader(Key.Left, ModifierKeys.None, true), "Left remains page input");
         Check(ReaderKeys.ReturnsToBooks(Key.Down, ModifierKeys.None, true), "plain Down returns while active");
         foreach (var key in new[] { Key.Left, Key.Right, Key.Up, Key.Escape })
             Check(!ReaderKeys.ReturnsToBooks(key, ModifierKeys.None, true), "other keys pass to webpage");

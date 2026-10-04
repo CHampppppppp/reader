@@ -45,6 +45,8 @@ struct ReadingKeyTests {
         while !app.isActive && Date() < deadline { RunLoop.current.run(until: Date().addingTimeInterval(0.01)) }
         check(app.isActive, "Test app activates for focused input")
         check(panel.isKeyWindow, "Isolated panel becomes key without activating the app")
+        var hides = 0
+        panel.onHide = { hides += 1 }
         var returns = 0
         panel.onReturnToBooks = { returns += 1 }
         func event(_ code: Int, _ modifiers: NSEvent.ModifierFlags = [], repeatKey: Bool = false) -> NSEvent {
@@ -52,6 +54,11 @@ struct ReadingKeyTests {
                 timestamp: 0, windowNumber: panel.windowNumber, context: nil,
                 characters: "", charactersIgnoringModifiers: "", isARepeat: repeatKey, keyCode: UInt16(code))!
         }
+        panel.sendEvent(event(kVK_UpArrow, [.function, .numericPad]))
+        check(hides == 1 && probe.received.isEmpty, "Focused Up hides before reaching webpage")
+        panel.sendEvent(event(kVK_UpArrow, repeatKey: true))
+        check(hides == 1 && probe.received.isEmpty, "Held Up is consumed without repeating")
+        check(!panel.performKeyEquivalent(with: event(kVK_UpArrow, .command)), "Command Up remains global")
         panel.sendEvent(event(kVK_DownArrow, [.function, .numericPad]))
         check(returns == 1 && probe.received.isEmpty, "Down returns before the page receives it")
         panel.sendEvent(event(kVK_DownArrow, repeatKey: true))
@@ -65,10 +72,13 @@ struct ReadingKeyTests {
         check(probe.received.last == UInt16(kVK_RightArrow), "Wheel delivers native page key")
         panel.resignKey()
         check(!panel.performKeyEquivalent(with: event(kVK_DownArrow)) && returns == 1, "Inactive window does not return")
+        check(!panel.performKeyEquivalent(with: event(kVK_UpArrow)) && hides == 1, "Inactive Up does not hide")
         panel.makeKey()
         let sheet = NSWindow(contentRect: .zero, styleMask: [.titled], backing: .buffered, defer: false)
         panel.beginSheet(sheet)
         panel.sendEvent(event(kVK_DownArrow))
+        panel.sendEvent(event(kVK_UpArrow))
+        check(hides == 1, "Sheet Up does not hide")
         check(returns == 1, "Native sheet keeps keyboard handling")
         panel.endSheet(sheet)
         panel.orderOut(nil)
