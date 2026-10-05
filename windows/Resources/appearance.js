@@ -16,7 +16,6 @@
   const settings = __READER_SETTINGS__;
   const colors = ['#D4AF37', '#FFFFFF', '#202124', '#A0A0A0', '#7CBF88', '#82B1FF'];
   const textColor = colors.includes(settings.textColor) ? settings.textColor : colors[0];
-  const outlineColor = textColor === '#202124' ? '#F5F5F5' : '#29251E';
   const rgb = [1, 3, 5].map(offset => parseInt(textColor.slice(offset, offset + 2), 16) / 255);
   const id = 'qingdu-appearance';
   let style = document.getElementById(id);
@@ -26,7 +25,7 @@
     (document.head || document.documentElement).appendChild(style);
   }
   // The official reader paints some text into a dedicated canvas layer.
-  // Recolor only that layer and add a thin dark outline; leave images alone.
+  // Recolor only that layer, preserving its original alpha and antialiased edges.
   if (!document.getElementById('qingdu-text-filters')) {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.id = 'qingdu-text-filters';
@@ -41,10 +40,6 @@
           0 0 0 0 0.686275
           0 0 0 0 0.215686
           0 0 0 1 0" />
-        <feMorphology in="SourceAlpha" operator="dilate" radius="0.65" result="outlineMask" />
-        <feFlood flood-color="#29251E" flood-opacity="0.9" result="outlineColor" />
-        <feComposite in="outlineColor" in2="outlineMask" operator="in" result="outline" />
-        <feMerge><feMergeNode in="outline" /><feMergeNode in="gold" /></feMerge>
       </filter>
     </defs>`;
     (document.body || document.documentElement).appendChild(svg);
@@ -53,7 +48,6 @@
   const filters = document.getElementById('qingdu-text-filters');
   filters.querySelector('feColorMatrix').setAttribute('values',
     `0 0 0 0 ${rgb[0]} 0 0 0 0 ${rgb[1]} 0 0 0 0 ${rgb[2]} 0 0 0 1 0`);
-  filters.querySelector('feFlood').setAttribute('flood-color', outlineColor);
   const readingStyle = `
     /* Keep layout boxes intact: the reader measures them for canvas pagination. */
     body:has(.readerChapterContent, .wr_horizontalReader) :is(.readerTopBar, .readerControls, .readerBottomBar, .wr_reader_float_corner_bookmark_wrapper),
@@ -84,7 +78,7 @@
     .readerChapterContent .renderTargetContent :is(p, span, div, a, h1, h2, h3, h4, h5, h6, pre, code),
     .readerChapterContent .renderTargetPageInfo_header,
     .readerChapterContent .renderTargetPageInfo_header * {
-      text-shadow: -0.65px 0 ${outlineColor}, 0.65px 0 ${outlineColor}, 0 -0.65px ${outlineColor}, 0 0.65px ${outlineColor};
+      text-shadow: none !important;
       color: ${textColor} !important;
       -webkit-text-fill-color: ${textColor} !important;
     }

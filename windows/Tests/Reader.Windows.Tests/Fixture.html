@@ -14,6 +14,8 @@ body { margin: 0; background: white; }
 <p>背景应透出桌面，正文保持金色。按住 Alt 拖动文字区域移动窗口。</p>
 <p>Ctrl + ↑ 隐藏或恢复；官网内 ←／→ 翻页，↓ 返回选书页；托盘菜单可切换深色背景、退出。</p>
 </div><div class="wr_canvasContainer"><canvas id="canvas" width="120" height="50"></canvas></div>
+<div class="wr_canvasContainer"><canvas id="glyphCanvas" width="120" height="60" style="position:absolute;left:40px;top:500px"></canvas></div>
+<canvas id="glyphReference" width="120" height="60" style="position:absolute;left:200px;top:500px"></canvas>
 <div id="reference"></div><canvas id="illustration" width="20" height="20" style="position:absolute;left:220px;top:365px"></canvas>
 <div style="position:absolute;left:250px;top:365px;width:10px;height:10px;background:red"></div>
 <button class="renderTarget_pager_button">下一页</button></div></div>
@@ -27,6 +29,16 @@ window.firstLayout = {
 };
 const ctx = document.querySelector('#canvas').getContext('2d');
 ctx.fillStyle = 'black'; ctx.fillRect(10, 10, 20, 20);
+for (const id of ['glyphCanvas', 'glyphReference']) {
+  const canvas = document.getElementById(id);
+  // Match physical pixel phases even with a custom Windows display scale.
+  const ratio = window.devicePixelRatio;
+  canvas.style.left = `${Math.round(parseFloat(canvas.style.left) * ratio) / ratio}px`;
+  canvas.style.top = `${Math.round(parseFloat(canvas.style.top) * ratio) / ratio}px`;
+  const glyph = canvas.getContext('2d');
+  glyph.font = '500 22px "Microsoft YaHei"'; glyph.fillText('清晰阅读 Aa', 4, 30);
+  glyph.globalAlpha = 0.25; glyph.fillRect(100, 40, 10, 10);
+}
 const picture = document.querySelector('#illustration').getContext('2d');
 picture.fillStyle = 'red'; picture.fillRect(0, 0, 20, 20);
 window.turns = 0;

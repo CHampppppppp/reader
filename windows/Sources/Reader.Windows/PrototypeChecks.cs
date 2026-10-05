@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Interop;
 using System.Windows.Input;
@@ -64,6 +65,7 @@ internal static class PrototypeChecks
               document.dispatchEvent(new KeyboardEvent('keydown', {key:'ArrowRight'}));
               return style.color === 'rgb(212, 175, 55)' &&
                 style.fontFamily.includes('Microsoft YaHei') &&
+                style.textShadow === 'none' &&
                 window.firstLayout.font === style.fontFamily &&
                 window.firstLayout.height === style.lineHeight &&
                 window.firstLayout.margin === style.marginBottom &&
@@ -84,11 +86,20 @@ internal static class PrototypeChecks
         using var bitmap = new Bitmap(pixels);
         string widthJson = await core.ExecuteScriptAsync("innerWidth");
         double scale = bitmap.Width / double.Parse(widthJson, System.Globalization.CultureInfo.InvariantCulture);
+        string glyphJson = await core.ExecuteScriptAsync("""
+            ['glyphCanvas', 'glyphReference'].flatMap(id => {
+              const r = document.getElementById(id).getBoundingClientRect();
+              return [r.left, r.top];
+            })
+            """);
+        var glyphPositions = JsonSerializer.Deserialize<double[]>(glyphJson);
+        Check(glyphPositions is { Length: 4 }, "glyph fixture coordinates");
         var gold = bitmap.GetPixel((int)(60 * scale), (int)(370 * scale));
         var reference = bitmap.GetPixel((int)(185 * scale), (int)(370 * scale));
         Check(Math.Abs(gold.R - reference.R) < 6 && Math.Abs(gold.G - reference.G) < 6 &&
             Math.Abs(gold.B - reference.B) < 6 && gold.A > 240, "canvas gold pixels");
         Check(bitmap.GetPixel(bitmap.Width - 5, bitmap.Height - 5).A == 0, "WebView transparent pixels");
+        VerifyGlyphAlpha(bitmap, scale, glyphPositions!);
 
         foreach (var color in ReadingColor.Choices)
         {
@@ -110,6 +121,7 @@ internal static class PrototypeChecks
             await core.CapturePreviewAsync(CoreWebView2CapturePreviewImageFormat.Png, changedPixels);
             changedPixels.Position = 0;
             using var changed = new Bitmap(changedPixels);
+            VerifyGlyphAlpha(changed, scale, glyphPositions!);
             var textPixel = changed.GetPixel((int)(60 * scale), (int)(370 * scale));
             var swatch = changed.GetPixel((int)(185 * scale), (int)(370 * scale));
             Check(Math.Abs(textPixel.R - swatch.R) < 6 && Math.Abs(textPixel.G - swatch.G) < 6 &&
@@ -152,6 +164,30 @@ internal static class PrototypeChecks
         await execution.WaitAsync(TimeSpan.FromSeconds(5));
         await idle.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Console.WriteLine("PASS: offline prototype checks; desktop composition and input still require manual verification.");
+    }
+
+    private static void VerifyGlyphAlpha(Bitmap bitmap, double scale, double[] positions)
+    {
+        int glyphX = (int)Math.Round(positions[0] * scale), glyphY = (int)Math.Round(positions[1] * scale);
+        int originalX = (int)Math.Round(positions[2] * scale), originalY = (int)Math.Round(positions[3] * scale);
+        int width = (int)(120 * scale), height = (int)(60 * scale);
+        Check(glyphX >= 0 && glyphY >= 0 && originalX >= 0 && originalY >= 0 &&
+            glyphX + width <= bitmap.Width && originalX + width <= bitmap.Width &&
+            glyphY + height <= bitmap.Height && originalY + height <= bitmap.Height, "glyph fixture not clipped");
+        int inkPixels = 0, edgePixels = 0;
+        for (int dy = 0; dy < height; dy++)
+        {
+            for (int dx = 0; dx < width; dx++)
+            {
+                var actual = bitmap.GetPixel(glyphX + dx, glyphY + dy);
+                var original = bitmap.GetPixel(originalX + dx, originalY + dy);
+                if (Math.Abs(actual.A - original.A) > 5)
+                    throw new InvalidOperationException("Canvas coloring thickened glyphs or changed edge alpha");
+                if (original.A > 2) inkPixels++;
+                if (original.A > 2 && original.A < 253) edgePixels++;
+            }
+        }
+        Check(inkPixels > 100 && edgePixels > 20, "canvas glyph and antialias alpha unchanged");
     }
 
     private static void VerifyColorPreferences()
